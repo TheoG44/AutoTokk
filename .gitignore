@@ -1,0 +1,15 @@
+# Envrionnement Virtuel
+myenv/
+
+pycache/
+*.pyc
+
+# Fichiers temporaires
+*.mp4
+*.avi
+*.mkv
+*.wav
+*.mp3
+
+# Configs d’éditeurs
+.vscode/
