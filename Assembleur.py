@@ -1,8 +1,11 @@
 import os
 from moviepy import *  # type: ignore
+import logging
+
+# ---- Setup Logging ---- #
+logging.basicConfig(level=logging.INFO, filename=".log", filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Dossiers contenant les vidéos
-
 folder_path1 = "VideoFinis/segments"
 folder_path2 = "VideoFinis/segments"
 
@@ -11,8 +14,10 @@ os.makedirs(output_folder, exist_ok=True)
 
 # Vérifier si les dossiers existent
 if not os.path.exists(folder_path1):
+    logging.error(f"Le dossier {folder_path1} n'existe pas.")
     raise FileNotFoundError(f"Le dossier {folder_path1} n'existe pas.")
 if not os.path.exists(folder_path2):
+    logging.error(f"Le dossier {folder_path2} n'existe pas.")
     raise FileNotFoundError(f"Le dossier {folder_path2} n'existe pas.")
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
@@ -48,3 +53,4 @@ for i in range(len(videos1)):
     final_clip.write_videofile(output_path, codec='libx264')
 
 print("Les vidéos ont été assemblées avec succès.")
+logging.info(f"Les vidéos ont été assemblées avec succès.")
