@@ -1,6 +1,10 @@
 import os 
 from pytubefix import YouTube
 from moviepy import VideoFileClip, AudioFileClip
+import logging
+
+# ---- Setup Logging ---- #
+logging.basicConfig(level=logging.INFO, filename=".log", filemode="w", format="%(asctime)s - %(levelname)s - %(message)s")
 
 # URL de la vidéo
 url = "https://www.youtube.com/watch?v=aAdfoRu6ysY"
@@ -13,14 +17,17 @@ os.makedirs(output_folder, exist_ok=True) # Crée le dossier si n'existe pas
 # ---- Téléchargement en Piste Audio & Video ---- #
 
 # Meilleure vidéo (adaptive, sans audio)
+logging.info("Démarrage ...")
 video_stream = yt.streams.filter(adaptive=True, file_extension="mp4", type="video").order_by("resolution").desc().first()
 video_path = video_stream.download(filename="video.mp4") # type: ignore
 print(f"✅ Vidéo téléchargée en {video_stream.resolution}") # type: ignore
+logging.info(f"Vidéo téléchargée en {video_stream.resolution}") # type: ignore
 
 # Meilleure piste audio
 audio_stream = yt.streams.filter(only_audio=True, file_extension="mp4").first()
 audio_path = audio_stream.download(filename="audio.mp3") # type: ignore
 print("✅ Audio téléchargé")
+logging.info(f"Audio téléchargé") # type: ignore
 
 # ---- Fusion des Piste Audio & Video ---- #
 
@@ -47,4 +54,6 @@ os.remove(video_path) # Sup video.mp4 # type: ignore
 os.remove(audio_path) # Su audio.mp3 # type: ignore
 
 print("✅ Fusion terminée ! Fichier final_1080p.mp4 créé.")
+logging.info(f"Fusion terminée ! Fichier final_1080p.mp4 créé.")
 print("✅ Supression des fichiers temporaires terminée !")
+logging.info(f"Supression des fichiers temporaires terminée !")

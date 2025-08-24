@@ -3,6 +3,7 @@ myenv/
 
 pycache/
 *.pyc
+*.log
 
 # Fichiers temporaires
 *.mp4
@@ -10,6 +11,8 @@ pycache/
 *.mkv
 *.wav
 *.mp3
+
+VideosFinis/
 
 # Configs d’éditeurs
 .vscode/
