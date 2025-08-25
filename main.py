@@ -3,6 +3,7 @@ import logging
 from pytubefix import YouTube
 from moviepy import VideoFileClip, AudioFileClip, CompositeVideoClip
 import shutil
+import sys
 
 # ---- Setup Logging ---- #
 logging.basicConfig(
