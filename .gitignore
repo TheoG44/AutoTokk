@@ -5,7 +5,6 @@ myenv/
 pycache/
 *.pyc
 *.log
-.env
 
 # Fichiers temporaires
 *.mp4

@@ -96,3 +96,4 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CommandHandler('youtube', youtube))
     app.run_polling(poll_interval=5)
+    print("Lancement du bot...")
