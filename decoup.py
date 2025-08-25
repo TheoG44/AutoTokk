@@ -1,34 +1,35 @@
 import os
 from moviepy import VideoFileClip
 
-# ---- Création de dossier --- #
-input_folder = "VideoFinis"
-output_folder = os.path.join(input_folder, "segments")
-os.makedirs(output_folder, exist_ok=True)
+def decouper_video(input_path: str, output_folder: str, segment_length: int = 60):
+    """
+    Découpe une vidéo en segments de durée fixe.
 
-# Nom du fichier a découper
-video_path = os.path.join(input_folder, "VideoFinale1080p.mp4")
+    Args:
+        input_path (str): Chemin vers la vidéo d'entrée.
+        output_folder (str): Dossier où sauvegarder les segments.
+        segment_length (int): Longueur de chaque segment en secondes (par défaut 60).
+    """
+    os.makedirs(output_folder, exist_ok=True)
 
-segment_length = 60  # secondes
+    # On récupère la durée totale de la vidéo
+    with VideoFileClip(input_path) as video:
+        duration = int(video.duration)
 
-# On récup vidéo pour avoir durée totale
-with VideoFileClip(video_path) as video:
-    duration = int(video.duration)
+    # Boucle pour découper la vidéo en morceaux
+    for i, start in enumerate(range(0, duration, segment_length)):
+        end = min(start + segment_length, duration)
 
-# Boucle pour decouper la vidéo en morceauw
-for i, start in enumerate(range(0, duration, segment_length)):
-    end = min(start + segment_length, duration)
-    
-    # On recharge la vidéo à chaque itération 
-    with VideoFileClip(video_path) as video:
-        segment = video.subclipped(start, end)
-        segment_filename = os.path.join(output_folder, f"segment_{i+1:03d}.mp4") # nom du segments en sortie
-        segment.write_videofile(
-            segment_filename,
-            codec="libx264",
-            audio_codec="aac",
-            threads=4
-        )
-        segment.close()
+        # Recharge la vidéo à chaque itération pour éviter bugs de MoviePy
+        with VideoFileClip(input_path) as video:
+            segment = video.subclipped(start, end)
+            segment_filename = os.path.join(output_folder, f"segment_{i+1:03d}.mp4")
+            segment.write_videofile(
+                segment_filename,
+                codec="libx264",
+                audio_codec="aac",
+                threads=4
+            )
+            segment.close()
 
-print(f"✅ Découpage terminé ! Segments dans : {output_folder}")
+    print(f"✅ Découpage terminé ! Segments dans : {output_folder}")
