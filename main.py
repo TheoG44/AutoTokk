@@ -191,14 +191,3 @@ def assembler_videos(folder_path1: str, folder_path2: str, output_folder: str):
     except Exception:
         logging.exception(f"❌ Erreur lors du nettoyage") 
     
-    
-    
-#################################    
-#    Démarrage du Programme     #
-#################################    
-
-if __name__ == "__main__":
-    logging.info("🚀 Lancement du programme principal...")
-    main(url) # type: ignore
-    
-test_url = ""
