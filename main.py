@@ -21,9 +21,8 @@ logging.basicConfig(
 #                                                             #
 ###############################################################
 
-def main():
+def main(url: str): # Prend l'url de la vidéo youtube
     # ---- Paramètres ---- #
-    url = "https://www.youtube.com/watch?v=YyAuFiIv-V4"
     logging.info(f"Téléchargement depuis l'URL : {url}")
     output_folder = "VideoFinis"
     os.makedirs(output_folder, exist_ok=True)
@@ -70,6 +69,15 @@ def main():
         os.path.join(output_folder, "segments"),
         os.path.join(output_folder, "VideoMonte")
     )
+    
+    # Récupérer tous les segments montés
+    output_folder = os.path.join(output_folder, "VideoMonte")
+    all_videos = sorted([
+      os.path.join(output_folder, f)
+    for f in os.listdir(output_folder)
+    if f.endswith(".mp4")
+    ])
+    return all_videos  # renvoie une liste de chemins
 
 
 #################################################################################
@@ -180,7 +188,7 @@ def assembler_videos(folder_path1: str, folder_path2: str, output_folder: str):
             logging.info(f"✅ Suppression du dossier {folder_path1}")
 
 
-    except Exception as e:
+    except Exception:
         logging.exception(f"❌ Erreur lors du nettoyage") 
     
     
@@ -191,4 +199,6 @@ def assembler_videos(folder_path1: str, folder_path2: str, output_folder: str):
 
 if __name__ == "__main__":
     logging.info("🚀 Lancement du programme principal...")
-    main()
+    main(url) # type: ignore
+    
+test_url = ""

@@ -1,9 +1,11 @@
 # Envrionnement Virtuel
 myenv/
 
+# Fichiers secrets
 pycache/
 *.pyc
 *.log
+.env
 
 # Fichiers temporaires
 *.mp4
