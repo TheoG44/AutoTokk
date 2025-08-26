@@ -1,194 +1,179 @@
 import os
 import logging
-from pytubefix import YouTube
-from moviepy import VideoFileClip, AudioFileClip, CompositeVideoClip
 import shutil
+import subprocess
+from pytubefix import YouTube
+from concurrent.futures import ProcessPoolExecutor
 import sys
 
-# ---- Setup Logging ---- #
+# ===============================
+# 📝 Setup Logging
+# ===============================
 logging.basicConfig(
     level=logging.INFO,
     filename=".log",
-    filemode="w",
+    filemode="a",  # append pour conserver les logs
     format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
     encoding='utf-8'
 )
 
-###############################################################
-# Télécharge une vidéo à partir d'une url Youtube.            #
-# Args:                                                       #
-#  None                                                       #
-#                                                             #
-#                                                             #
-###############################################################
+# --------------------------------------
+# 🎬 Découpe rapide d'une vidéo en segments
+# --------------------------------------
+def decouper_video_fast(input_file, output_folder, segment_length=60):
+    logging.info(f"📂 [DECOUPE] Début de la découpe de {input_file} en segments de {segment_length}s")
 
-def main(url: str): # Prend l'url de la vidéo youtube
-    # ---- Paramètres ---- #
-    logging.info(f"Téléchargement depuis l'URL : {url}")
-    output_folder = "VideoFinis"
     os.makedirs(output_folder, exist_ok=True)
 
-    # ---- Téléchargement en Piste Audio & Vidéo ---- #
-    logging.info("⌛ Démarrage du téléchargement...")
-    yt = YouTube(url)
-
-    # Meilleure vidéo (adaptive, sans audio)
-    video_stream = yt.streams.filter(adaptive=True, file_extension="mp4", type="video").order_by("resolution").desc().first()
-    video_path = video_stream.download(filename="video.mp4")  # type: ignore
-    logging.info(f"✅ Vidéo téléchargée en {video_stream.resolution}")  # type: ignore
-
-    # Meilleure piste audio
-    logging.info("⌛ Découpage de la vidéo lancé...")
-    audio_stream = yt.streams.filter(only_audio=True, file_extension="mp4").first()
-    audio_path = audio_stream.download(filename="audio.mp3")  # type: ignore
-    logging.info("✅ Audio téléchargé")
-
-    # ---- Fusion des Pistes Audio & Vidéo ---- #
-    logging.info("⌛ Assemblage des segments lancé...")
-    video_clip = VideoFileClip(video_path)
-    audio_clip = AudioFileClip(audio_path)
-    final_clip = video_clip.with_audio(audio_clip)
-
-    final_path = os.path.join(output_folder, "VideoFinale1080p.mp4")
-    final_clip.write_videofile(final_path, codec="libx264", audio_codec="aac")
-    logging.info(f"✅ Vidéo finale sauvegardée dans : {final_path}")
-
-    # ---- Nettoyage fichiers temporaires ---- #
-    video_clip.close()
-    audio_clip.close()
-    final_clip.close()
-    os.remove(video_path) # type: ignore
-    os.remove(audio_path) # type: ignore
-    logging.info("✅ Fusion terminée et fichiers temporaires supprimés")
-
-    # ---- Étape 2 : Découper la vidéo ---- #
-    decouper_video(final_path, os.path.join(output_folder, "segments"))
-
-    # ---- Étape 3 : Assembler les segments ---- #
-    assembler_videos(
-        os.path.join(output_folder, "segments"),
-        os.path.join(output_folder, "segments"),
-        os.path.join(output_folder, "VideoMonte")
+    # Récupérer la durée totale
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration","-of", "default=noprint_wrappers=1:nokey=1", input_file],stdout=subprocess.PIPE,stderr=subprocess.STDOUT
     )
-    
-    # Récupérer tous les segments montés
-    output_folder = os.path.join(output_folder, "VideoMonte")
-    all_videos = sorted([
-      os.path.join(output_folder, f)
-    for f in os.listdir(output_folder)
-    if f.endswith(".mp4")
-    ])
-    return all_videos  # renvoie une liste de chemins
+    duration = int(float(result.stdout))
+    logging.info(f"⏱️ Durée détectée : {duration} secondes pour {input_file}")
 
-
-#################################################################################
-# Découpe une vidéo en segments de durée fixe.                                  #
-# Args:                                                                         #
-#  input_path (str): Chemin vers la vidéo d'entrée.                             #
-#  output_folder (str): Dossier où sauvegarder les segments.                    #
-#  segment_length (int): Longueur de chaque segment en secondes (par défaut 60) #
-#################################################################################
-
-def decouper_video(input_path: str, output_folder: str, segment_length: int = 60):
-
-    os.makedirs(output_folder, exist_ok=True)
-
-    # On récupère la durée totale de la vidéo
-    with VideoFileClip(input_path) as video:
-        duration = int(video.duration)
-
-    # Boucle pour découper la vidéo en morceaux
     for i, start in enumerate(range(0, duration, segment_length)):
         end = min(start + segment_length, duration)
+        output_file = os.path.join(output_folder, f"{os.path.basename(input_file)}_seg_{i+1:03d}.mp4")
 
-        # Recharge la vidéo à chaque itération pour éviter bugs de MoviePy
-        with VideoFileClip(input_path) as video:
-            segment = video.subclipped(start, end)
-            segment_filename = os.path.join(output_folder, f"segment_{i+1:03d}.mp4")
-            logging.info(f"⌛ Découpage de {input_path} en segments de {segment_length}s...")
-            segment.write_videofile(
-                segment_filename,
-                codec="libx264",
-                audio_codec="aac",
-                threads=4
-            )
-            logging.info(f"✅ Segment {i+1} sauvegardé : {segment_filename}")
-            segment.close()
-    
-    logging.info(f"✅ Découpage terminé. {i+1} segments créés dans {output_folder}")
-    
-    
-#################################################################################
-# Assemble les vidéos de deux dossiers en une seule vidéo.                      #
-# Args:                                                                         #
-#  folder_path1 (str): Chemin du premier dossier contenant les vidéos.          #
-#  folder_path2 (str): Chemin du deuxième dossier contenant les vidéos.         #
-#  output_folder (str): Dossier où sauvegarder les vidéos assemblées.           #
-#################################################################################
-    
-def assembler_videos(folder_path1: str, folder_path2: str, output_folder: str):
+        subprocess.run([
+            "ffmpeg", "-y", "-ss", str(start), "-to", str(end),
+            "-i", input_file, "-c", "copy", output_file
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+        logging.info(f"✅ Segment {i+1} sauvegardé : {output_file}")
+
+    logging.info(f"📦 Découpe terminée pour {input_file}, segments enregistrés dans {output_folder}")
+    return output_folder
+
+
+# --------------------------------------
+# 🎥 Fonction pour assembler une paire de vidéos
+# --------------------------------------
+def assembler_pair(top, bottom, output):
+    logging.info(f"🎞️ [ASSEMBLAGE] Empilement vertical : {top} + {bottom} -> {output}")
+
+    cmd = [
+        "ffmpeg", "-y", "-i", top, "-i", bottom,
+        "-filter_complex", "[0:v][1:v]vstack=inputs=2",
+        "-c:v", "libx264", "-preset", "ultrafast",
+        "-crf", "23",
+        output
+    ]
+
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    logging.info(f"✅ Assemblage créé : {output}")
+
+
+# --------------------------------------
+# 🎬 Assemblage rapide vertical avec FFmpeg
+# --------------------------------------
+def assembler_videos_ffmpeg(folder_path1: str, folder_path2: str, output_folder: str):
+    logging.info(f"📂 [ASSEMBLAGE MULTIPLE] Début assemblage des segments dans {output_folder}")
 
     os.makedirs(output_folder, exist_ok=True)
 
-    # Vérifier si les dossiers existent
-    if not os.path.exists(folder_path1):
-        logging.error(f"❌ Le dossier {folder_path1} n'existe pas.")
-        raise FileNotFoundError(f"Le dossier {folder_path1} n'existe pas.")
-    if not os.path.exists(folder_path2):
-        logging.error(f"❌ Le dossier {folder_path2} n'existe pas.")
-        raise FileNotFoundError(f"Le dossier {folder_path2} n'existe pas.")
+    videos1 = sorted([os.path.join(folder_path1, f) for f in os.listdir(folder_path1) if f.endswith(".mp4")])
+    videos2 = sorted([os.path.join(folder_path2, f) for f in os.listdir(folder_path2) if f.endswith(".mp4")])
 
-    # Récupérer les fichiers vidéos
-    videos1 = sorted([os.path.join(folder_path1, f) for f in os.listdir(folder_path1) if f.endswith(('.mp4', '.mov', '.avi'))])
-    videos2 = sorted([os.path.join(folder_path2, f) for f in os.listdir(folder_path2) if f.endswith(('.mp4', '.mov', '.avi'))])
-    logging.info(f"{len(videos1)} vidéos trouvées dans {folder_path1}")
-    logging.info(f"{len(videos2)} vidéos trouvées dans {folder_path2}")
+    logging.info(f"📊 {len(videos1)} vidéos trouvées dans {folder_path1}")
+    logging.info(f"📊 {len(videos2)} vidéos trouvées dans {folder_path2}")
 
-    for i in range(len(videos1)):
-        # Charger les vidéos
-        clip1 = VideoFileClip(videos1[i])
-        clip2 = VideoFileClip(videos2[i])
+    with ProcessPoolExecutor() as executor:
+        futures = []
+        for i, (top, bottom) in enumerate(zip(videos1, videos2)):
+            output_file = os.path.join(output_folder, f'AutoTok_video_{i+1:03d}.mp4')
+            futures.append(executor.submit(assembler_pair, top, bottom, output_file))
+        for f in futures:
+            f.result()
 
-        # Redimensionner à la même largeur
-        width = max(clip1.w, clip2.w)
-        clip1 = clip1.resized(width=width)
-        clip2 = clip2.resized(width=width)
+    logging.info(f"🧹 Nettoyage du dossier intermédiaire : {folder_path1}")
+    shutil.rmtree(folder_path1, ignore_errors=True)
 
-        # Déterminer la hauteur totale
-        height = clip1.h + clip2.h # type: ignore
-
-        # Créer une vidéo composite
-        final_clip = CompositeVideoClip([
-            clip1.with_position(("center", "top")), # type: ignore
-            clip2.with_position(("center", "bottom")) # type: ignore
-        ], size=(width, height))
-
-        # Sauvegarder la vidéo assemblée
-        output_path = os.path.join(output_folder, f'AutoTok_video_0{i+1}.mp4')
-        final_clip.write_videofile(output_path, codec='libx264')
-
-        # Libérer mémoire
-        clip1.close()
-        clip2.close()
-        final_clip.close()
-    
-    logging.info("✅ Les vidéos ont été assemblées avec succès.")
-    
-    # ---- Nettoyage des fichiers intermédiaires ---- #
-    try:
-        # Supprimer le fichier vidéo finale avant découpage
-        video_finale = os.path.join("VideoFinis", "VideoFinale1080p.mp4")
-        if os.path.exists(video_finale):
-            os.remove(video_finale)
-            logging.info("✅ Suppression de VideoFinale1080p.mp4")
+    logging.info(f"✅ Assemblage terminé, vidéos sauvegardées dans {output_folder}")
 
 
-        # Supprimer tout le dossier segments
-        if os.path.exists(folder_path1):
-            shutil.rmtree(folder_path1)
-            logging.info(f"✅ Suppression du dossier {folder_path1}")
+# --------------------------------------
+# 📥 Téléchargement et fusion rapide
+# --------------------------------------
+def download_and_merge(url, output_folder="VideoFinis"):
+    logging.info(f"🌐 [DOWNLOAD] Téléchargement de la vidéo : {url}")
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    yt = YouTube(url)
+    logging.info(f"🎬 Titre de la vidéo : {yt.title}")
+
+    video_stream = yt.streams.filter(adaptive=True, file_extension="mp4", type="video").order_by("resolution").desc().first()
+    audio_stream = yt.streams.filter(only_audio=True, file_extension="mp4").first()
+
+    logging.info("📥 Téléchargement de la vidéo et de l'audio séparément...")
+    video_path = video_stream.download(filename="video.mp4")  # type: ignore
+    audio_path = audio_stream.download(filename="audio.mp3")  # type: ignore
+
+    final_path = os.path.join(output_folder, "VideoFinale1080p.mp4")
+    subprocess.run([
+        "ffmpeg", "-y", "-i", video_path, "-i", audio_path, "-c", "copy", final_path
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)  # type: ignore
+
+    os.remove(video_path)  # type: ignore
+    os.remove(audio_path)  # type: ignore
+
+    logging.info(f"✅ Vidéo fusionnée et sauvegardée : {final_path}")
+    return final_path
 
 
-    except Exception:
-        logging.exception(f"❌ Erreur lors du nettoyage") 
-    
+# --------------------------------------
+# 🚀 Fonction principale
+# --------------------------------------
+def main(urls):
+    logging.info("🚀 [MAIN] Lancement du pipeline vidéo")
+
+    if not shutil.which("ffmpeg"):
+        logging.error("❌ FFmpeg introuvable dans le PATH")
+        sys.exit(
+            "❌ FFmpeg n'est pas installé ou introuvable dans le PATH.\n"
+            "Téléchargez-le ici : https://www.gyan.dev/ffmpeg/builds/\n"
+            "Assurez-vous que le dossier 'bin' contenant ffmpeg.exe est ajouté au PATH."
+        )
+
+    print("✅ FFmpeg trouvé ! On peut continuer…")
+    logging.info("✅ FFmpeg trouvé dans le PATH")
+
+    if isinstance(urls, str):
+        urls = [urls]
+
+    # 📥 Téléchargement et fusion des vidéos
+    video_files = [download_and_merge(url) for url in urls]
+
+    # ✂️ Découper toutes les vidéos en parallèle
+    segments_folder = os.path.join("VideoFinis", "segments")
+    logging.info("✂️ Début de la découpe en segments")
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(decouper_video_fast, f, segments_folder) for f in video_files]
+        for future in futures:
+            future.result()
+
+    # 🎞️ Assembler les segments
+    montage_folder = os.path.join("VideoFinis", "VideoMonte")
+    assembler_videos_ffmpeg(segments_folder, segments_folder, montage_folder)
+
+    # 📂 Récupération des fichiers finaux
+    all_videos = sorted([
+        os.path.join(montage_folder, f)
+        for f in os.listdir(montage_folder)
+        if f.endswith(".mp4")
+    ])
+
+    logging.info(f"📦 Pipeline terminé, {len(all_videos)} vidéos générées dans {montage_folder}")
+    return all_videos
+
+
+# --------------------------------------
+# ▶️ Lancer le programme
+# --------------------------------------
+if __name__ == "__main__":
+    urls = "https://www.youtube.com/watch?v=PsUDbM5O8sU"
+    logging.info("▶️ Exécution directe de main2.py")
+    main(urls)

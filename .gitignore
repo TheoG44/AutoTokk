@@ -17,9 +17,3 @@ VideosFinis/
 
 # Configs d’éditeurs
 .vscode/
-
-# Dépendances Python
-# ⚠️ Nécessite aussi ffmpeg installé sur votre système !
-#   - Windows : https://ffmpeg.org/download.html (ajouter au PATH)
-#   - Linux   : sudo apt install ffmpeg -y
-#   - MacOS   : brew install ffmpeg
