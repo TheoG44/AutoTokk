@@ -25,12 +25,13 @@ def compresser_video(input_file, output_file):
     logging.info(f"📉 Compression de la vidéo : {input_file} -> {output_file}")
 
     cmd = [
-        "ffmpeg", "-y", "-i", input_file,
-        "-vf", "scale=720:-2",      # largeur max = 720px (hauteur proportionnelle)
-        "-b:v", "1M",               # limite bitrate vidéo à 1 Mbps
-        "-c:a", "aac", "-b:a", "128k",  # audio en AAC 128 kbps
-        output_file
-    ]
+    "ffmpeg", "-y", "-i", input_file,
+    "-vf", "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2",
+    "-b:v", "1M",
+    "-c:a", "aac", "-b:a", "128k",
+    output_file
+]
+
 
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, check=True)
