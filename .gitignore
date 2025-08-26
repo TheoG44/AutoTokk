@@ -6,14 +6,10 @@ pycache/
 *.pyc
 *.log
 
-# Fichiers temporaires
-*.mp4
-*.avi
-*.mkv
-*.wav
-*.mp3
 
-VideosFinis/
+VideosFinis/*.mp4
+VideoFinis/VideoMonte/*.mp4
+
 
 # Configs d’éditeurs
 .vscode/

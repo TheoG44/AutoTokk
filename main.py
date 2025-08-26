@@ -5,6 +5,7 @@ import subprocess
 from pytubefix import YouTube
 from concurrent.futures import ProcessPoolExecutor
 import sys
+import random
 
 # ===============================
 # 📝 Setup Logging
@@ -69,22 +70,30 @@ def assembler_pair(top, bottom, output):
 # --------------------------------------
 # 🎬 Assemblage rapide vertical avec FFmpeg
 # --------------------------------------
-def assembler_videos_ffmpeg(folder_path1: str, folder_path2: str, output_folder: str):
+def assembler_videos_ffmpeg(folder_path1: str, output_folder: str):
     logging.info(f"📂 [ASSEMBLAGE MULTIPLE] Début assemblage des segments dans {output_folder}")
 
     os.makedirs(output_folder, exist_ok=True)
 
+    # Liste des segments à superposer
     videos1 = sorted([os.path.join(folder_path1, f) for f in os.listdir(folder_path1) if f.endswith(".mp4")])
-    videos2 = sorted([os.path.join(folder_path2, f) for f in os.listdir(folder_path2) if f.endswith(".mp4")])
 
-    logging.info(f"📊 {len(videos1)} vidéos trouvées dans {folder_path1}")
-    logging.info(f"📊 {len(videos2)} vidéos trouvées dans {folder_path2}")
+    # Liste des vidéos dans Videos2
+    videos2_all = [os.path.join("Videos2", f) for f in os.listdir("Videos2") if f.endswith(".mp4")]
+
+    logging.info(f"📊 {len(videos1)} segments trouvés dans {folder_path1}")
+    logging.info(f"📊 {len(videos2_all)} vidéos disponibles dans Videos2")
 
     with ProcessPoolExecutor() as executor:
         futures = []
-        for i, (top, bottom) in enumerate(zip(videos1, videos2)):
+        for i, top in enumerate(videos1):
+            # Choisir aléatoirement une vidéo dans Videos2
+            bottom = random.choice(videos2_all)
             output_file = os.path.join(output_folder, f'AutoTok_video_{i+1:03d}.mp4')
+            logging.info(f"🔗 Assemblage segment {i+1}: {top} + {bottom}")
             futures.append(executor.submit(assembler_pair, top, bottom, output_file))
+
+        # Attendre que tous les assemblages soient terminés
         for f in futures:
             f.result()
 
@@ -92,6 +101,7 @@ def assembler_videos_ffmpeg(folder_path1: str, folder_path2: str, output_folder:
     shutil.rmtree(folder_path1, ignore_errors=True)
 
     logging.info(f"✅ Assemblage terminé, vidéos sauvegardées dans {output_folder}")
+
 
 
 # --------------------------------------
@@ -157,8 +167,8 @@ def main(urls):
 
     # 🎞️ Assembler les segments
     montage_folder = os.path.join("VideoFinis", "VideoMonte")
-    assembler_videos_ffmpeg(segments_folder, segments_folder, montage_folder)
-
+    assembler_videos_ffmpeg(segments_folder, montage_folder)  
+    
     # 📂 Récupération des fichiers finaux
     all_videos = sorted([
         os.path.join(montage_folder, f)
