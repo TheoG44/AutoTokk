@@ -1,5 +1,6 @@
 # Envrionnement Virtuel
 myenv/
+.env_autotok/
 
 # Fichiers secrets
 pycache/
